@@ -1,0 +1,363 @@
+---
+title: 'Continued Modeling With Extra Testing'
+geometry: margin = 2.0cm
+output:
+  word_document: default
+  html_notebook: default
+  pdf_document: default
+---
+
+__Situation:__ Suppose that you are interested in purchasing a used vehicle. How much should you expect to pay?  Obviously the price will depend on the type of vehicle that you get (the model) and how much it's been used. For this assignment you will investigate how the price might depend on the vehicle's year and mileage.  
+ 
+__Data Source:__ To get a sample of vehicles, begin with the UsedCars CSV file. The data was acquired by scraping TrueCar.com for used vehicle listings on 9/24/2017 and contains more than 1.2 million used vehicles. For this assignment you will choose a vehicle _Model_ from a US company for which there are at least 100 of that model listed for sale in North Carolina. Note that whether the companies are US companies or not is not contained within the data. It is up to you to determine which _Make_ of vehicles are from US companies. After constructing a subset of the UsedCars data under these conditions, check to make sure that there is a reasonable amount of variability in the years for your vehicle, with a range of at least six years.
+
+
+
+
+
+```{r}
+library(readr)
+
+# This line requires Used Car CSV
+UsedCars <- read_csv("UsedCars.csv")
+
+StateUsed = "NC"
+
+# Creating a data frame with the number of each model for sale in North Carolina
+Vehicles = as.data.frame(table(UsedCars$Model[UsedCars$State==StateUsed]))
+
+# Renaming the Variables
+names(Vehicles)[1] = "Model"
+names(Vehicles)[2] = "Count"
+
+# Restricting the data to only models with at least 100 for sale
+Enough_Vehicles = subset(Vehicles, Count>=100)
+
+# Enough_Vehicles
+```
+
+```{r}
+#I selected FocusSE as my model of choice to analyze
+ModelOfMyChoice = "FocusSE"
+
+# Taking a subset of your model vehicle from North Carolina
+MyVehicles = subset(UsedCars, Model==ModelOfMyChoice & State==StateUsed)
+
+#Checking to make sure that the vehicle span at least 6 years
+range(MyVehicles$Year)
+```
+
+\newpage
+
+#### MODEL #1: Use Mileage as a predictor for Price ####
+
+1.	Calculate the least squares regression line that best fits your data using _Mileage_ as the predictor and _Price_ as the response. Interpret (in context) what the slope estimate tells you about prices and mileages of your used vehicle model. Explain why the sign (positive/negative) makes sense.
+
+2.	Produce a scatterplot of the relationship with the regression line on it.
+
+3.	Produce appropriate residual plots and comment on how well your data appear to fit the conditions for a linear model. Don't worry about doing transformations at this point if there are problems with the conditions.
+
+4.	Find the five vehicles in your sample with the largest residuals (in magnitude - positive or negative). For these vehicles, find their standardized and studentized residuals. Based on these specific residuals, would any of these vehicles be considered outliers? Based on these specific residuals, would any of these vehicles possibly be considered influential on your linear model? 
+
+5.  Determine the leverages for the vehicles with the five largest absolute residuals. What do these leverage values say about the potential for each of these five vehicles to be influential on your model?
+
+6. Determine the Cook's distances for the vehicles with the five largest absolute residuals. What do these Cook's distances values say about the influence of each of these five vehicles on your model?
+
+7.	Compute and interpret in context a 95% confidence interval for the slope of your regression line. Interpret (in context) what the confidence interval for the slope tells you about prices and mileages of your used vehicle model.
+
+8.	Test the strength of the linear relationship between your variables using each of the three methods (test for correlation, test for slope, ANOVA for regression). Include hypotheses for each test and your conclusions in the context of the problem.
+
+9.	Suppose that you are interested in purchasing a vehicle of this model that has 50,000 miles on it (in 2017). Determine each of the following: 95% confidence interval for the mean price at this mileage and 95% prediction interval for the price of an individual vehicle at this mileage. Write sentences that carefully interpret each of the intervals (in terms of vehicles prices).
+
+10.	Experiment with some transformations to attempt to find one that seems to do a better job of satisfying the linear model conditions. Include the summary output for fitting that model and a scatterplot of the original data with this new model (which is likely a curve on the original data). Explain why you think that this transformation does or does not improve satisfying the linear model conditions.
+
+11.	According to your transformed model, is there a mileage at which the vehicle should be free?  If so, find this mileage and comment on what the "free vehicle" phenomenon says about the appropriateness of your model.
+
+12. Again suppose that you are interested in purchasing a vehicle of this model that has 50,000 miles on it (in 2017). Determine each of the following using your transformed model: 95% confidence interval for the mean price at this mileage and 95% prediction interval for the price of an individual vehicle at this mileage. Write sentences that carefully interpret each of the intervals (in terms of vehicle prices).
+
+
+
+```{r}
+#Calculating least squares regression line that best fits my data
+CarModel = lm(Price~Mileage, data=MyVehicles)
+summary(CarModel)
+```
+
+The slope estimate (approximately -0.07645) is telling us that for each additional mile, the price decreases by about -0.076 dollars. This makes sense because a car with less miles on it will be more expensive than a car of the same model with a higher amount of miles on it. Increasing miles on a car makes a car less valuable. This means that as miles increase on a car, the price is decreasing.
+
+
+```{r}
+#Creating a scatter plot of the relationship with the regression line that we just created
+plot(Price~Mileage, data=MyVehicles)
+abline(CarModel)
+```
+
+
+```{r}
+#Producing residual plots
+plot(CarModel)
+```
+
+Linearity: The residuals and fitted plot shows fairly good linearity. The condition seems to be met with the red line being very close to the dotted horizontal line.
+
+Normality: The normality seems to have some skew on the right end as shown in the Normal Q-Q plots. Although not incredibly far off, this condition is not met.
+
+Constance Variance: The constant variance condition is clearly not met. There is an obvious fanning pattern shown in the residuals vs. fitted plot.
+
+```{r}
+#Calculating the five vehicles in my sample with the largest residuals in magnitude
+head(sort(CarModel$residuals, decreasing=TRUE), 5)
+head(sort(CarModel$residuals, decreasing=FALSE), 5)
+
+#Looking at stats for the 5 vehicles with the highest residuals in magnitude
+MyVehicles[c(169, 152, 28, 143, 43),]
+
+```
+
+
+```{r}
+#Calculating standardized and studentized residuals
+rstandard(CarModel)[c(169, 152, 28, 143, 43)]
+
+rstudent(CarModel)[c(169, 152, 28, 143, 43)]
+```
+
+Because all of these studentized and standardized residuals are above 2 standard deviations above the mean (and some being 3), we can conclude that they are all outliers.
+
+Based on the residuals, I would conclude that there is a possibility of potential influence.
+
+
+
+For Leverage: 
+n = 181 so 2 to 3 times (2/181) will be the points of leverage we are looking for.
+
+
+```{r}
+#Looking at the hat values for the five largest residuals in the model
+hatvalues(CarModel)[c(169, 152, 28, 143, 43)]
+
+#Calculating 2 to 3 times (2/181) since these are the marks we are looking for to be considered "typical leverage"
+(2/181)
+
+2 * (2/181)
+
+3 * (2/181)
+```
+
+None of these values are 2 or 3 times the typical leverage, which means none of these values are potentially influential. (None of our values are larger than these numbers.)
+
+
+```{r}
+#Calculating Cook's Distances for the vehicles with five largest residuals
+cooks.distance(CarModel)[c(169, 152, 28, 143, 43)]
+```
+
+These Cook's Distance values show that there is absolutely no influence on the model. These values would have to be .5 or 1 to be influential, but they are all below this.
+
+
+```{r}
+#Computing 95% confidence interval for the slope of the regression line
+confint(CarModel, level=0.95)
+```
+
+We are 95% confident that the slope for mileage is between -0.085 and -0.068. This means that we are 95% confident that for one unit of increase for miles, the price will decrease by between -0.085 and -0.068.
+
+
+```{r}
+#Testing for correlation between variables
+cor.test(MyVehicles$Mileage, MyVehicles$Price)
+```
+
+```{r}
+#Using anova for an f-test on the slope
+anova(CarModel)
+```
+
+
+```{r}
+#Testing the slope using the summary t-test
+summary(CarModel)
+```
+
+
+The null hypothesis for the correlation test is assuming that correlation is 0. The p-value is very small (< 2.2e-16), which means that there is enough evidence to reject this null, saying that there is a correlation between mileage and price.
+
+The null hypothesis for the anova test is using a model with a slope of 0. It is comparing the model that we have built against it. The p-value is very small again (< 2.2e-16), which means that there is enough evidence to reject the null, saying that our model is better than one with the slope of 0. This means that there is a relationship between mileage and price.
+
+The null hypothesis for the test of slope is assuming that the slope of the mileage variable is 0. The p-value is very small (< 2.2e-16), which means that there is enough evidence to reject the null, concluding that there is a slope on the mileage variable. This means that there is a relationship between mileage and price. 
+
+All of these p-values are the same number because this is a single variable regression. All of the tests end up concluding the same idea.
+
+
+```{r}
+#Creating a new data frame to produce a car model with 50,000 miles on it
+newx = data.frame(Mileage=50000)
+
+#Calculating a 95% confidence interval for the mean price at this mileage and a 95% prediction interval for the price of an individual vehicle at this mileage
+predict.lm(CarModel, newx, interval="confidence")
+predict.lm(CarModel, newx, interval="prediction")
+```
+
+We are 95% confident that the interval of 10582.25 and 11000.95 contains the mean price of Sedan SE's in NC with 50,000 miles on it.
+
+We are 95% confident that the interval of 8053.38 and 13529.82 contains the price of one Sedan SE in NC with 50,000 miles on it.
+
+
+```{r}
+#Experimented with a couple transformations to come up with a log(Y) model, which fits the linear model conditions better than the original model
+plot(log(Price)~Mileage, data=MyVehicles)
+CarMod2 = lm(log(Price)~Mileage, data=MyVehicles)
+abline(CarMod2)
+
+
+plot(CarMod2)
+summary(CarMod2)
+```
+
+
+```{r}
+#Producing a scatter plot with the curve to this new transformation
+plot(Price~Mileage, data=MyVehicles)
+
+B0 = summary(CarMod2)$coef[1,1]
+B1 = summary(CarMod2)$coef[2,1]
+
+curve(exp(B0 + B1*x),add=TRUE, col='red')
+```
+
+While the linearity (in the residuals and fitted plot) does not show much improvement, the normality and constant variance show improvements. The normal Q-Q plot shows improvements on the right side of the line. The points are much closer than before. The residuals vs. fitted plot shows a slight improvement of constant variance across. It looks like the fanning pattern is much less noticeable.
+
+
+
+To calculate a mileage at which vehicle should be free:
+0=exp(B0+B1*x) 
+0 = e^(9.6+(-0.000007638*x))
+
+There is not a point in which the vehicle should be free. This is because the red line above (transformation) will never hit 0. It will run as close to the x-axis as possible, but never hit it. It is not possible to take the log of 0, therefore the equation above is not possible to complete. This would make sense as a car's value would not make sense to be $0.
+
+
+
+
+```{r}
+#Same dataframe that holds the one vehicle at 50,000 miles
+newx = data.frame(Mileage=50000)
+
+#New prediction and confidence intervals using the log(y) model.
+exp(predict.lm(CarMod2, newx, interval="confidence"))
+exp(predict.lm(CarMod2, newx, interval="prediction"))
+```
+
+We are 95% confident that the interval of 10295.02 and 10690.43 contains the mean price of SedanSE's in NC with 50,000 miles on it.
+
+We are 95% confident that the interval of 8199.17 and 13423.09 contains the price of one SedanSE in NC with 50,000 miles on it.
+
+
+#### MODEL #2: Again use Mileage as a predictor for Price, but now for new data #### 
+
+13. Select a new sample from the UsedCar dataset using the same _Model_ vehicle that was used in the previous sections, but now from vehicles for sale in a different US state. You can mimic the code used above to select this new sample. You should select a state such that there are at least 100 of that model listed for sale in the new state.
+
+14. Calculate the least squares regression line that best fits your new data and produce a scatterplot of the relationship with the regression line on it.
+
+15. How does the relationship between _Price_ and _Mileage_ for this new data compare to the regression model constructed in the first section? Does it appear that the relationship between _Mileage_ and _Price_ for your _Model_ of vehicle is similar or different for the data from your two states? Explain.
+
+```{r}
+#Using new state (Georgia) with the same model vehicle 
+Statetwo = "GA"
+MyVehiclesGA = subset(UsedCars, Model==ModelOfMyChoice & State==Statetwo)
+```
+
+
+```{r}
+#Calculating new least squares regression line and producing a scatter plot of the relationship
+CarModGA = lm(Price~Mileage, data=MyVehiclesGA)
+plot(Price~Mileage, data=MyVehiclesGA)
+abline(CarModGA)
+```
+
+
+```{r}
+#Plotting the new model diagnostics to analyze the relationship differences between this model and the North Carolina model
+plot(CarModGA)
+```
+
+This new GA model for SedanSE's is a much worse fit than the NC model. Comparatively, the GA model is much less linear. The GA  residuals vs. fitted plot shows very poor linearity, the normal Q-Q plot has more right hand skew, and the constant variance is just as poor. While there seems to be the same overall pattern for relationship between mileage and price (negative relationship), it seems to be a much different curve than the last.
+
+
+16. Again suppose that you are interested in purchasing a vehicle of this model that has 50,000 miles on it (in 2017) from your new state. How useful do you think that your model will be? What are some possible cons of using this model?
+
+Fitting a vehicle that has 50,000 miles into this model would not be very useful. The linear model does not do a good job of fitting this data and we would be better off finding a different model to fit it (most likely a curve). Possible cons include the fact that my model may be influenced by certain points. Point 142 seems to have a Cook's Distance close to 1, which means it is highly influencing the model. This would not only affect predictions of vehicles with 50,000 miles on it, but it could affect all predictions. 
+
+
+#### MODEL #3: Use Year as a predictor for Price ####
+
+17.	What proportion of the variability in the _Mileage_ of your North Carolina vehicles' sale prices is explained by the _Year_ of the vehicles?
+
+18. Calculate the least squares regression line that best fits your data using _Year_ as the predictor and _Price_ as the response. Produce a scatterplot of the relationship with the regression line on it.
+
+19.	Produce appropriate residual plots and comment on how well your data appear to fit the conditions for a simple linear model. Don't worry about doing transformations at this point if there are problems with the conditions.
+
+20. Experiment with some transformations to attempt to find one that seems to do a better job of satisfying the linear model conditions. Include the summary output for fitting that model and a scatterplot of the original data with this new model (which is likely a curve on the original data). Explain why you think that this transformation does or does not improve satisfying the linear model conditions.
+
+```{r}
+#Creating a basic model to check the variability in Mileage that is explained by Year (R-Squared)
+CarMod4 = lm(Mileage~Year, data=MyVehicles)
+summary(CarMod4)$r.squared
+```
+
+48.23% of the variability in the mileage of the NC vehicles' sales price is explained by the year of the vehicle.
+
+
+```{r}
+#Calculating least squares regression line that best fits my data using Year as predictor and Price as response, instead of mileage. Showing a scatter plot with the regression line as well
+CarModY = lm(Price~Year, data=MyVehicles)
+plot(Price~Year, data=MyVehicles)
+abline(CarModY)
+```
+
+
+```{r}
+#Producing residual plots to analyze the linear model conditions
+plot(CarModY)
+```
+Linearity: The linearity condition is not met. While there is an upward trend shown in the scatterplot, this trend is clearly not linear with many holes in the middle of the plot.
+
+Normality: The normality condition seems to not be met. The right tail of the normal Q-Q plot is definitely skewed off of the line and the left side is even a bit skewed as well.
+
+Constant Variance: The constant variance condition is definitely not met. The residuals vs. fitted plot shows obvious inconsistencies. There are many dots in vertical lines for each year and gaps in between.
+
+
+
+
+
+```{r}
+#Tested out new transformations, came to the conclusion that log(y) seemed to show the best fit
+plot(log(Price)~Year, data=MyVehicles)
+CarModY2 = lm(log(Price)~Year, data=MyVehicles)
+abline(CarModY2)
+
+#Producing a summary of the transformed model
+summary(CarModY2)
+
+```
+
+
+```{r}
+#Plotting scatter plot with the new curve from the transformed log(y) model
+B0 = summary(CarModY2)$coef[1,1]
+B1 = summary(CarModY2)$coef[2,1]
+
+plot(Price~Year, data=MyVehicles)
+curve(exp(B0+B1*x), add=TRUE, col='green')
+
+
+plot(CarModY2)
+```
+
+
+This transformation does not improve satisfying the linear model conditions, because both the residuals vs. fitted and residuals vs. leverage plots look very similar. This means the constant variance and linear conditions are both the same. The normal Q-Q plot looks much worse in the transformed version. Although the scatter plots may make the curve look better, the normality plot tells us differently.
+
+
+21. How do the transformed models, using either _Year_ or _Mileage_ as the predictor for your model of vehicle for sale in North Carolina compare? Does one of the models seem "better" or do they seem similar in their ability to predict _Price_? Explain.
+
+The mileage model definitely seems to fit "better" and "better" predict price. The NC transformed mileage model seems to very closely fit the data as the normality plot for that is the best fit in this assignment. The residuals vs. fitted plot also shows better constant variance and a straighter red line. The NC mileage model does not have high leverage points or Cook's Distance at all, while the NC year model seems to have a couple points that are coming close to that 0.5 Cook's Distance.
+
